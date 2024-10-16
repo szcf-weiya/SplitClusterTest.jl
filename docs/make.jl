@@ -20,6 +20,6 @@ makedocs(sitename="SplitClusterTest.jl",
         ]        
 )
 
-# deploydocs(
-#     repo = "github.com/szcf-weiya/SplitClusterTest.jl"
-# )
+deploydocs(
+    repo = "github.com/szcf-weiya/SplitClusterTest.jl"
+)
