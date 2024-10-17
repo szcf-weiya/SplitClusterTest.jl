@@ -27,6 +27,12 @@ end
     @test 0 <= fdr < 0.2
     @test 0.5 <= f1 <= 1.0
 
+    # with whitening
+    res = ds(x, q = 0.05, ret_ms = false, kmeans_whiten = true)
+    fdr, f1, prec, recall = calc_acc(res, truth)
+    @test 0 <= fdr < 0.2
+    @test 0.5 <= f1 <= 1.0
+
     res = mds(x, M = 10, q = 0.05)
     fdr, f1, prec, recall = calc_acc(res, truth)
     @test 0 <= fdr < 0.2
@@ -77,4 +83,10 @@ end
     fdr, f1, prec, recall = calc_acc(res, truth)
     @test 0 <= fdr < 0.2
     @test 0.5 <= f1 <= 1.0
+end
+
+@testset "check pc" begin
+    a, b = first_two_PCs(randn(10, 4))
+    @test length(a) == length(b) == 10
+    @test sum(a.^2) > sum(b.^2)
 end
