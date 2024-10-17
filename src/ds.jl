@@ -4,6 +4,11 @@ using RCall
 using LinearAlgebra
 using Distributions
 
+"""
+    calc_τ(ms::AbstractVector, q::Float64 = 0.05, offset::Int = 1)
+
+Calculate the cutoff of the mirror statistics `ms` given the nominal FDR level `q`. It is recommended to take `offset = 1` in the numerator, as discussed in the knockoff paper.
+"""
 function calc_τ(ms::AbstractVector, q::Float64 = 0.05, offset::Int = 1)
     ts = sort(abs.(ms))
     ret = [maximum(ms)]
@@ -52,6 +57,10 @@ function cluster_diff(x::AbstractMatrix, cl::AbstractVector{Int64}; method = "si
     return ds
 end
 
+function pval_glm(x, t)
+   return rcopy(R"summary(glm($x ~ $t, family = 'poisson'))$coefficients[2, 4]")
+end
+
 function calc_sign_pvals(X::AbstractMatrix, t::AbstractVector)
     idx = t .!= -1
     if sum(idx) == 0
@@ -64,7 +73,7 @@ function calc_sign_pvals(X::AbstractMatrix, t::AbstractVector)
     pvals = zeros(p)
     for i = 1:p
         mean_diff = mean(X[idx, i][ii]) - mean(X[idx, i][.!ii])
-        pval = try rcopy(R"pval_glm"(X[idx, i], t[idx]))
+        pval = try pval_glm(X[idx, i], t[idx])
         catch e
             @warn e
             1
@@ -77,20 +86,38 @@ function calc_sign_pvals(X::AbstractMatrix, t::AbstractVector)
 end
 
 cl_kmeans(x::AbstractMatrix; kw...) = kmeans(x', 2; kw...).assignments
+cl_rkmeans(x::AbstractMatrix; kw...) = rcopy(R"kmeans($x, 2)$cluster")
+
 
 function ti_pca(xx::AbstractMatrix)
-    xx = log.(x .+ 1)
+    xx = log.(xx .+ 1)
     t = svd(xx .- mean(xx, dims = 1)).U[:, 1]
     return t
 end
 
+"""
+    ds(::AbstractMatrix; ...)
+
+Select with the nominal FDR level `q` via a single data splitting on data matrix `x`.
+
+- `q`: nominal FDR level
+- `signal_measure`: the signal measurement
+- `ret_ms`: if `true`, then return the mirror statistics; otherwise, return the selection set
+- `type`: if `discrete`, perform the testing after clustering into two groups; 
+        otherwise, perform the testing along pseduotime after estimating the pseduotime
+- `cl_method`: the function for clustering into two groups (only used if `type == discrete`)
+- `ti_method`: the function for estimating the pseduotime (only used if `type != discrete`)
+- `oracle_label`: if provided (it is `nothing` by default), the accuracy of the clustering will be calculated. 
+- `kmeans_whiten`: whether to perform whitening
+- `Σ`: used for kmeans whitening
+"""
 function ds(x::AbstractMatrix; q = 0.05, signal_measure = "tstat", 
-                plt = true, ret_ms = false, 
+                ret_ms = false, 
                 type = "discrete", 
-                cl_method::Function = cl_kmeans, 
+                cl_method::Function = cl_rkmeans, 
                 ti_method::Function = ti_pca, 
                 oracle_label = nothing,
-                kmeans_whiten = false, Σ = nothing, λ = 1e-6)
+                kmeans_whiten = false, Σ = nothing)
     n = size(x, 1)
     n2 = round(Int, n/2)
     idx1 = sample(1:n, n2, replace = false)
@@ -100,7 +127,7 @@ function ds(x::AbstractMatrix; q = 0.05, signal_measure = "tstat",
     if kmeans_whiten
         p = size(x, 2)
         if isnothing(Σ)
-            Σ = est_Σ(x) + λ * 1.0I
+            Σ = est_Σ(x) + 1e-6 * 1.0I
             #Σ = cov(x) + λ * 1.0I
         end
         ev = eigen(Σ)
@@ -137,19 +164,7 @@ function ds(x::AbstractMatrix; q = 0.05, signal_measure = "tstat",
     end
     τ = calc_τ(ms, q)
     m_sel = findall(ms .> τ)
-    if plt
-        @info "selected features: " m_sel'
-        @info "mirror stat: " ms[m_sel]'
-        @info "mirror stat of first 20: " ms[1:20]'
-        @info "d1 of first 20: " d1[1:20]'
-        @info "d2 of first 20: " d2[1:20]'
-        @info "selected features (including negative): " findall(abs.(ms) .> τ)'
-        fig = histogram(ms, label = "")
-        Plots.vline!(fig, [τ], label = "", lw = 3)
-        return fig
-    else
-        return m_sel
-    end
+    return m_sel
 end
 
 
@@ -226,16 +241,20 @@ function sel_inc_rate(inc_rate::AbstractArray{T}; q::Float64 = 0.05, tol = 1e-10
     end
 end
 
-function mds(x::AbstractMatrix; M = 10, q = 0.05, signal_measure = "tstat", plt = false, 
+"""
+    mds(x::AbstractMatrix; M = 10, ...)
+
+Select with the nominal FDR level `q` via `M` times data splitting on data matrix `x`. All paramaters except `M` are passed to `ds`.
+"""
+function mds(x::AbstractMatrix; M = 10, q = 0.05, signal_measure = "tstat", 
                 type = "discrete", 
-                qm = 0.05, # dummy to be consistent with mds5
-                cl_method = cl_kmeans, 
+                cl_method = cl_rkmeans, 
                 ti_method = ti_pca,
                 kmeans_whiten = false, kw...)
     if M == 1
-        return ds(x; ret_ms = false, plt = false, q = q, signal_measure = signal_measure, type = type, ti_method = ti_method, cl_method = cl_method, kmeans_whiten = kmeans_whiten, kw...)
+        return ds(x; ret_ms = false, q = q, signal_measure = signal_measure, type = type, ti_method = ti_method, cl_method = cl_method, kmeans_whiten = kmeans_whiten, kw...)
     end
-    mss = [ds(x; ret_ms = true, plt = false, q = q, signal_measure = signal_measure, type = type, ti_method = ti_method, cl_method = cl_method, kmeans_whiten = kmeans_whiten, kw...) for _ in 1:M]
+    mss = [ds(x; ret_ms = true, q = q, signal_measure = signal_measure, type = type, ti_method = ti_method, cl_method = cl_method, kmeans_whiten = kmeans_whiten, kw...) for _ in 1:M]
     τs = [calc_τ(_ms, q) for _ms in mss]
     inc_rate = calc_inc_rate(mss, τs, sum_in_denom = true)
     ret = sel_inc_rate(inc_rate)

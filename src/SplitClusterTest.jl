@@ -9,6 +9,7 @@ export gen_data_normal,
        ds,
        mds,
        calc_τ,
-       calc_acc
+       calc_acc,
+       first_two_PCs
 
 end # module SplitClusterTest

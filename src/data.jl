@@ -37,7 +37,22 @@ function fixcorr_s1(ρ::Real, p::Int, p1::Int; corr01 = 1)
     return Σ
 end
 
-function gen_data_normal(n::Int, p::Int, δ = 1.0; prop_imp = 0.1, 
+"""
+    gen_data_normal(n::Int, p::Int, δ::Float64; prop_imp = 0.1, corr_structure = "ind", ρ = 0.9, sigma = 0, ...)
+
+Generate `n` samples with `p` features from two Gaussian distributions. 
+
+- `prop_imp`: the proportion of relevant features
+- `corr_structure`: the correlation structure, possible choices:
+    - `ind`: independent
+    - `ar1`: AR(1) structure
+    - `fixcorr`: fixed correlation
+    - `fixcorr_s1_ind`: fixed correlation among relevant features, and no correlation between the null features and relevant features
+    - `fixcorr_s1`: fixed correlation among relevant features, and maximum correlation between the null features and relevant features such that the correlation matrix is positive definite.
+- `ρ`: the correlation coefficient
+- `sigma`: the noise level on the signal strength
+"""
+function gen_data_normal(n::Int, p::Int, δ::Float64; prop_imp = 0.1, 
                                 corr_structure = "ind", ρ = 0.9,
                                 prop_cl1 = 0.5,
                                 order = 1,
@@ -77,6 +92,15 @@ function gen_data_normal(n::Int, p::Int, δ = 1.0; prop_imp = 0.1,
     return Matrix(x), cl
 end
 
+"""
+    gen_data_pois(Λ::AbstractMatrix; ρ = 0.5, block_size = 10)
+
+Generate Poisson samples of the same size `Λ`, which is the mean values of each element. 
+The features can be correlated via the Gaussian Copula, whose correlation matrix is block-diagonal AR(1) structure.
+
+- `ρ`: the correlation coefficient
+- `block_size`: the size of each block in the correlation matrix
+"""
 function gen_data_pois(Λ::AbstractMatrix; ρ = 0.5, block_size = 10)
     n, p = size(Λ)
     Σ = ar1(ρ, block_size)
@@ -95,7 +119,18 @@ function gen_data_pois(Λ::AbstractMatrix; ρ = 0.5, block_size = 10)
     return X
 end
 
-function gen_data_pois(; n = 1000, p = 2000, prop_imp = 0.1, ρ = 0.5, δ = 1.0, block_size = 10, type = "discrete", sigma = 0)
+"""
+    gen_data_pois(n::Int, p::Int, δ::Float64; prop_imp = 0.1, ρ = 0.5, block_size = 10, type = "discrete", sigma = 0)
+
+Generate `n` samples with `p` features from Poisson distributions
+
+- `type`: if `discrete`, then generate from two Poisson distributions; otherwise, each sample has a different mean vector, which forms the linear pseduotime data.
+- `prop_imp`: the proportion of relevant features
+- `sigma`: the noise level on the signal strength
+- `ρ`: the correlation coefficient. If non-zero, take the Gaussian Copula with AR(1) correlation structure with `ρ`
+- `block_size`: the block size when construct the correlation matrix, since the Copula of high dimension is computational expensive.
+"""
+function gen_data_pois(n::Int, p::Int, δ::Float64; prop_imp = 0.1, ρ = 0.5, block_size = 10, type = "discrete", sigma = 0)
     if type == "discrete"
         L = sample(0:1, n)
     else
@@ -108,6 +143,6 @@ function gen_data_pois(; n = 1000, p = 2000, prop_imp = 0.1, ρ = 0.5, δ = 1.0,
     logΛ = LFT .+ log(3) + randn(n, p) * sigma  # intercept
     Λ = exp.(logΛ)
     X = gen_data_pois(Λ, ρ = ρ, block_size = block_size)
-    return X
+    return X, L
 end
 

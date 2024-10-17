@@ -2,4 +2,3 @@
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 Literate = "98b081ad-f1c9-55d3-8b20-4c87d4299306"
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
-SplitClusterTest = "3179d415-6c90-44ae-a551-1cda3561f97d"

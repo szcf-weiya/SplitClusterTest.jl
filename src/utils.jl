@@ -1,3 +1,8 @@
+"""
+    calc_acc(pred::AbstractVector, truth::AbstractVector)
+
+Calculate the accuracy (FDR, F1 score, Precision, Power) for the predicted selection `pred` given the `truth`.
+"""
 function calc_acc(pred::AbstractVector{T}, truth::AbstractVector{T}) where T <: Real
     if length(truth) == 0 # NULL
         if length(pred) == 0
@@ -21,6 +26,17 @@ function calc_acc(pred::AbstractVector{T}, truth::AbstractVector{T}) where T <: 
         f1 = 0
     end
     return fdr, f1, precision, recall
+end
+
+"""
+    first_two_PCs(x::AbstractMatrix)
+
+Calculate the first two principal components of data matrix `x`.
+"""
+function first_two_PCs(x::AbstractMatrix)
+    xc = x .- mean(x, dims = 1)
+    U, S, V = svd(xc)
+    return U[:, 1] * S[1], U[:, 2] * S[2]
 end
 
 function est_Σ(x::AbstractMatrix)

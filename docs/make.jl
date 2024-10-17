@@ -5,7 +5,7 @@ using SplitClusterTest
 using Literate
 indir = joinpath(@__DIR__, "..", "examples")
 outdir = joinpath(@__DIR__, "src", "examples")
-files = ["demo-mirror.jl"]
+files = ["two-gaussians.jl", "two-poissons.jl", "cont-poissons.jl"]
 for file in files
     Literate.markdown(joinpath(indir, file), outdir; credit = false)
 end
@@ -14,7 +14,9 @@ makedocs(sitename="SplitClusterTest.jl",
         pages = [
             "Home" => "index.md",
             "Examples" => [
-                "Mirror Statistics" => "examples/demo-mirror.md"
+                "Two Gaussians" => "examples/two-gaussians.md",
+                "Two Poissons" => "examples/two-poissons.md",
+                "Continuous Poissons (Linear Pseduotime)" => "examples/cont-poissons.md"
             ],
             "API" => "api.md"
         ]        
