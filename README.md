@@ -11,4 +11,5 @@ Julia package for
 
 ## :arrow_right: See also
 
-For the comparison between data splitting and data fission, check <https://github.com/szcf-weiya/fission_vs_splitting>.
+- R package: <https://github.com/szcf-weiya/SplitClusterTest>
+- For the comparison between data splitting and data fission, check <https://github.com/szcf-weiya/fission_vs_splitting>.
